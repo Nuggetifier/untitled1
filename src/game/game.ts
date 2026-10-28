@@ -38,7 +38,11 @@ export function startGame(): void {
     if (event.key.startsWith('Arrow')) {
       event.preventDefault()
     }
-
+    window.addEventListener('keydown', (event: KeyboardEvent) => {
+      if (event.ctrlKey && ['s', 'p', 'f', 't', 'w'].includes(event.key.toLowerCase())) {
+        event.preventDefault();
+      }
+    });
     keys.add(event.key.toLowerCase())
   })
 
@@ -143,15 +147,57 @@ export function startGame(): void {
   let pWasDown = false;
   let sWasDown = false;
   let rWasDown = 0;
+  let escWasDown = false;
+  let last_grav = 0.2;
 
   let ground = 0;
   let player = {x:400, y:200, height:30, width:15, respawnX:400, respawnY:200};
   let velX = 0;
   let velY = 0;
   let grav = 0.2;
-  let last_grav = 0.2;
   let speed = 3;
   let jump = 7;
+
+  //let block = {x1: 0, y1: 0, x2: 0, y2: 0, draw: false, type: 0, index: 0}
+  let camera = {x: 0, y: 0};
+  let sprint = -20;
+  let editorMode = 0;
+  let gameplayMode = 0;
+  let wasSideCollision = 0;
+  let wasTopCollision = false;
+  let isSideCollision = false;
+  let sprint_timer = 100;
+  let canDown = true
+  let stun = 0;
+
+  let editorDashX = 0;
+  let editorDashY = 0;
+  let editorAccel = 0.3;
+  let cameraOffset = 300;
+  let editExtras = false;
+  let blockExtras: number[] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
+
+  let deaths = 0;
+  let respawn = 0;
+  let respawnTimer = 60;
+
+  let paused = false;
+  type button = {x: number, y: number, width: number, height: number, color: string, action: () => void}
+  type menu = {
+    buttons: button[],
+    texts: text[]
+  }
+  let menues: menu[] = [
+    {
+      buttons: [
+        {x: 0, y: 0, width: 100, height: 50, color: "red", action: () => {paused = !paused}},
+        {x: 100, y: 0, width: 100, height: 50, color: "green", action: () => {paused = !paused}},
+      ],
+      texts: []
+    }
+  ]
+
+
   let newBlock: block = {x1: 200, y1: 400, x2: 600, y2: 500, draw: false, type: 0, index: 1, extra: []}
   type xy = {x:number, y:number}
   type block = {x1:number, y1:number, x2:number, y2:number, draw:boolean, type: number, index: number, extra: xy[]};
@@ -232,39 +278,39 @@ export function startGame(): void {
     },
     {
       "blocks": [
-        {"x1":200,"y1":400,"x2":600,"y2":500,"draw":false,"type":0,"index":1,"extra":[]},
-        {"x1":140.95238095238096,"y1":315.0375939849624,"x2":185.95238095238096,"y2":362.15538847117796,"draw":false,"type":0,"index":1,"extra":[]},
-        {"x1":38.98245614035088,"y1":233.83458646616543,"x2":83.98245614035088,"y2":300,"draw":false,"type":0,"index":2,"extra":[]},
-        {"x1":-97.99248120300754,"y1":166.80451127819555,"x2":-52.99248120300754,"y2":176.80451127819555,"draw":false,"type":0,"index":3,"extra":[]},
-        {"x1":-307.1829573934838,"y1":47.50626566416048,"x2":-219.96491228070178,"y2":235.97744360902266,"draw":false,"type":0,"index":4,"extra":[]},
-        {"x1":-518.9624060150377,"y1":-69.44912280701737,"x2":-383.5714285714286,"y2":-38.57142857142844,"draw":false,"type":0,"index":5,"extra":[]},
-        {"x1":-649.8170426065163,"y1":-202.64461152882177,"x2":-536.4661654135339,"y2":-133.47167919799472,"draw":false,"type":0,"index":6,"extra":[]},
-        {"x1":-327.26967418546377,"y1":-296.0300751879698,"x2":-169.87619047619057,"y2":-215.82957393483696,"draw":false,"type":0,"index":8,"extra":[]},
-        {"x1":-242.11228070175434,"y1":-225.7167919799498,"x2":-197.11228070175434,"y2":-87.37092731829568,"draw":false,"type":1,"index":9,"extra":[]},
-        {"x1":-111.33383458646625,"y1":-469.38646616541325,"x2":-42.160902255639144,"y2":-304.97543859649096,"draw":false,"type":3,"index":11,"extra":[]},
-        {"x1":10.900250626566503,"y1":-215.7523809523807,"x2":69.04561403508774,"y2":-85.4265664160398,"draw":false,"type":1,"index":13,"extra":[]},
-        {"x1":-247.23107769423564,"y1":-77.40651629072659,"x2":-179.0606516290727,"y2":-66.37894736842077,"draw":false,"type":3,"index":13,"extra":[]},
-        {"x1":-250.18596491228078,"y1":-411.9974937343359,"x2":-181.01303258145367,"y2":-342.82456140350877,"draw":false,"type":5,"index":14,"extra":[]},
-        {"x1":-282.0771929824561,"y1":-504.9639097744355,"x2":112.91027568922311,"y2":-35.790977443608426,"draw":false,"type":6,"index":14,"extra":[]},
-        {"x1":910.11679197995,"y1":-148.65363408521233,"x2":1179.790977443609,"y2":-64.4431077694228,"draw":false,"type":0,"index":15,"extra":[]},
-        {"x1":1258.3097744360903,"y1":-223.7689223057638,"x2":1530.615538847118,"y2":-154.59598997493669,"draw":false,"type":2,"index":17,"extra":[]},
-        {"x1":1433.3724310776943,"y1":-150.43558897243042,"x2":1487.507769423559,"y2":75.12832080200565,"draw":false,"type":1,"index":18,"extra":[]},
-        {"x1":1024.6506265664161,"y1":-292.49072681704195,"x2":1069.6506265664161,"y2":-224.32030075187902,"draw":false,"type":5,"index":21,"extra":[]},
-        {"x1":1228.3724310776943,"y1":-417.01453634085146,"x2":1279.5002506265664,"y2":-213.50576441102692,"draw":false,"type":3,"index":22,"extra":[]},
-        {"x1":1155.1894736842105,"y1":-245.58596491228002,"x2":1281.5052631578947,"y2":-221.5258145363402,"draw":false,"type":0,"index":23,"extra":[]},
-        {"x1":1398.5829573934839,"y1":-453.1924812030069,"x2":1562.993984962406,"y2":-363.9694235588966,"draw":false,"type":3,"index":23,"extra":[]},
-        {"x1":1240.415037593985,"y1":-125.28521303258077,"x2":1291.5428571428572,"y2":114.31378446115355,"draw":false,"type":3,"index":23,"extra":[]},
-        {"x1":1279.6982456140352,"y1":-337.8766917293227,"x2":1360.9012531328322,"y2":-308.80401002506204,"draw":false,"type":0,"index":24,"extra":[]},
-        {"x1":1526.8285714285716,"y1":-452.95689223057576,"x2":1634.0967418546368,"y2":-225.38796992481133,"draw":false,"type":3,"index":24,"extra":[]},
-        {"x1":1037.5210526315789,"y1":-511.2776942355882,"x2":1101.9070175438596,"y2":-428.82155388471097,"draw":false,"type":5,"index":25,"extra":[]},
-        {"x1":1399.3949874686718,"y1":-361.79899749373374,"x2":1525.710776942356,"y2":-227.46315789473624,"draw":false,"type":6,"index":26,"extra":[]},
-        {"x1":600.3318295739349,"y1":400.97794486215605,"x2":1079.2791979949875,"y2":640.1007518796998,"draw":false,"type":4,"index":27,"extra":[]},
-        {"x1":600.0812030075189,"y1":399.4992481203014,"x2":1079.2791979949875,"y2":639.0982456140357,"draw":false,"type":4,"index":28,"extra":[]},
-        {"x1":496.97343358395995,"y1":472.6822055137851,"x2":601.2340852130326,"y2":669.1734335839606,"draw":false,"type":0,"index":29,"extra":[]},
-        {"x1":1076.4220551378446,"y1":382.4817042606523,"x2":3646.0456140350816,"y2":545.8902255639105,"draw":false,"type":3,"index":30,"extra":[]},
-        {"x1":-2.1749373433584083,"y1":-235.54837092731765,"x2":119.12832080200502,"y2":-210.48571428571364,"draw":false,"type":0,"index":30,"extra":[]},
-        {"x1":597.2982456140351,"y1":692.2330827067669,"x2":1149.1528822055138,"y2":771.5563909774436,"draw":false,"type":8,"index":31,"extra":[]},
-        {"x1":-1011.5814536340852,"y1":418.29573934837094,"x2":201.70175438596493,"y2":471.42857142857144,"draw":false,"type":3,"index":32,"extra":[]}
+        {"x1":-1000,"y1":400,"x2":200,"y2":500,"draw":false,"type":3,"index":1,"extra":[]},
+        {"x1":600,"y1":400,"x2":1080,"y2":640,"draw":false,"type":4,"index":2,"extra":[]},
+        {"x1":600,"y1":400,"x2":1080,"y2":640,"draw":false,"type":4,"index":3,"extra":[]},
+        {"x1":1080,"y1":360,"x2":3680,"y2":680,"draw":false,"type":3,"index":4,"extra":[]},
+        {"x1":-320,"y1":40,"x2":-240,"y2":50,"draw":false,"type":0,"index":5,"extra":[]},
+        {"x1":-585,"y1":-80,"x2":-535,"y2":-70,"draw":false,"type":0,"index":6,"extra":[]},
+        {"x1":-600,"y1":-220,"x2":-520,"y2":-160,"draw":false,"type":0,"index":7,"extra":[]},
+        {"x1":-320,"y1":-280,"x2":-160,"y2":-200,"draw":false,"type":0,"index":8,"extra":[]},
+        {"x1":-260,"y1":-420,"x2":-180,"y2":-340,"draw":false,"type":5,"index":9,"extra":[]},
+        {"x1":-340,"y1":-500,"x2":100,"y2":-60,"draw":false,"type":6,"index":10,"extra":[]},
+        {"x1":-225,"y1":-200,"x2":-175,"y2":-80,"draw":false,"type":1,"index":11,"extra":[]},
+        {"x1":-240,"y1":-80,"x2":-160,"y2":-70,"draw":false,"type":3,"index":12,"extra":[]},
+        {"x1":15,"y1":-200,"x2":65,"y2":-80,"draw":false,"type":1,"index":13,"extra":[]},
+        {"x1":0,"y1":-240,"x2":110,"y2":-200,"draw":false,"type":0,"index":14,"extra":[]},
+        {"x1":0,"y1":-80,"x2":80,"y2":-70,"draw":false,"type":3,"index":15,"extra":[]},
+        {"x1":900,"y1":-140,"x2":1180,"y2":-60,"draw":false,"type":0,"index":16,"extra":[]},
+        {"x1":1020,"y1":-300,"x2":1100,"y2":-220,"draw":false,"type":5,"index":17,"extra":[]},
+        {"x1":1260,"y1":-220,"x2":1540,"y2":-140,"draw":false,"type":2,"index":18,"extra":[]},
+        {"x1":600,"y1":680,"x2":1080,"y2":760,"draw":false,"type":8,"index":19,"extra":[]},
+        {"x1":200,"y1":400,"x2":600,"y2":680,"draw":false,"type":0,"index":20,"extra":[]},
+        {"x1":135,"y1":280,"x2":185,"y2":290,"draw":false,"type":0,"index":21,"extra":[]},
+        {"x1":-105,"y1":160,"x2":-55,"y2":170,"draw":false,"type":0,"index":22,"extra":[]},
+        {"x1":1235,"y1":-430,"x2":1285,"y2":-220,"draw":false,"type":3,"index":23,"extra":[]},
+        {"x1":1170,"y1":-250,"x2":1280,"y2":-230,"draw":false,"type":0,"index":24,"extra":[]},
+        {"x1":1280,"y1":-340,"x2":1360,"y2":-220,"draw":false,"type":0,"index":25,"extra":[]},
+        {"x1":1400,"y1":-400,"x2":1600,"y2":-340,"draw":false,"type":3,"index":26,"extra":[]},
+        {"x1":1540,"y1":-340,"x2":1600,"y2":-220,"draw":false,"type":3,"index":27,"extra":[]},
+        {"x1":1430,"y1":-140,"x2":1490,"y2":30,"draw":false,"type":1,"index":28,"extra":[]},
+        {"x1":1490,"y1":30,"x2":1570,"y2":360,"draw":false,"type":3,"index":28,"extra":[]},
+        {"x1":1230,"y1":-140,"x2":1290,"y2":120,"draw":false,"type":3,"index":29,"extra":[]},
+        {"x1":1230,"y1":110,"x2":1450,"y2":170,"draw":false,"type":3,"index":30,"extra":[]},
+        {"x1":-120,"y1":-480,"x2":-40,"y2":-280,"draw":false,"type":3,"index":31,"extra":[]},
+        {"x1":1440,"y1":-340,"x2":1540,"y2":-220,"draw":false,"type":6,"index":32,"extra":[]}
       ],
       "texts": [
         {"text":"Try it!","x":400,"y":300,"size":50,"color":"white","draw":false},
@@ -283,27 +329,6 @@ export function startGame(): void {
 
     let level = 2;
 
-  //let block = {x1: 0, y1: 0, x2: 0, y2: 0, draw: false, type: 0, index: 0}
-  let camera = {x: 0, y: 0};
-  let sprint = -20;
-  let editorMode = 0;
-  let gameplayMode = 0;
-  let wasSideCollision = 0;
-  let wasTopCollision = false;
-  let isSideCollision = false;
-  let sprint_timer = 100;
-  let canDown = true
-  let stun = 0;
-
-  let editorDashX = 0;
-  let editorDashY = 0;
-  let editorAccel = 0.3;
-  let cameraOffset = 300;
-  let editExtras = false;
-  let blockExtras: number[] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
-
-  let deaths = 0;
-
   const field: block[][][] = [];
   function collidePlayer(x1: number, y1: number, x2: number, y2: number) {
     if (player.x < x2 && player.x + player.width > x1 && player.y < y2 && player.y + player.height > y1) {
@@ -321,16 +346,7 @@ export function startGame(): void {
   } else { return 0; }
 }
 
-function handleDamage () {
-    if(gameplayMode == 0) {
-      player.x = player.respawnX - player.width / 2;
-      player.y = player.respawnY - player.height / 2;
-      velX = 0;
-      velY = 0;
-      ground = 0;
-      deaths++;
-    }
-  }
+
 
 
 
@@ -387,6 +403,24 @@ function handleDamage () {
   });
 
 
+  function changeLevel(newLevel: number) {
+    level = newLevel;
+    blocks = [];
+    for (const x of Object.keys(field)) {
+      delete field[Number(x)]
+    }
+    field.length = 0
+    blocks = levels[newLevel].blocks;
+    texts = levels[newLevel].texts;
+    for(let i = 0; i < blocks.length; i++) {
+      blockToField(blocks[i]);
+    }
+    player.respawnX = 400;
+    player.respawnY = 200;
+    respawn = 0;
+  }
+
+
 
 
 
@@ -394,509 +428,547 @@ function handleDamage () {
 
 
   const frame = (): void => {
-    ground = 0;
-    player.x += velX;
-    player.y += velY;
-    last_grav = grav;
-    grav = 0.2;
-    canDown = true;
-    //----------------- PLAYER COLLISION --------------------------------
-
-
-    const nearbyBlocks = field[Math.floor(player.x / player.width)]?.[Math.floor(player.y / player.height)] ?? []
-
-    for (let i = 0; i < nearbyBlocks.length; i++) {
-      let block = nearbyBlocks[i];
-      if (block && collidePlayer(block.x1, block.y1, block.x2, block.y2) != 0) {
-        let direction = collidePlayer(block.x1, block.y1, block.x2, block.y2);
-
-        //Collision type 0; smooth walls
-
-        if (block.type == 0) {
-          if (direction == 1) {
-            player.y = block.y1 - player.height - 1;
-            velY = 0;
-            if (grav > 0 && last_grav > 0) {
-              ground = 1;
-              player.y = block.y1 - player.height + 1;
-            }
-          } else if (direction == 2) {
-            player.x = block.x1 - player.width - 1;
-          } else if (direction == 3) {
-            player.y = block.y2 + 1;
-            velY = 0;
-            if (grav < 0 || last_grav < 0) {
-              ground = 1;
-              player.y = block.y2 - 1;
-            }
-          } else if (direction == 4) {
-            player.x = block.x2 + 1;
-          }
-        }
-
-          // Collision type 1; Climbable walls
-
-
-
-        if (block.type == 1) {
-          if (direction == 1) {
-            if(grav > 0) {
-              if(wasSideCollision < 0 || isSideCollision) {
-                handleDamage();
-              } else {
-                wasTopCollision = true;
-              }
-            } else {
-              player.y = block.y2 - 1;
-              velY = 0;
-              if(keys.has('w') || keys.has('up_arrow')) {
-                velY = jump;
-              }
-            }
-          } else if (direction == 2) {
-            player.x = block.x1 - player.width - 1;
-            velY = 5 * grav;
-            ground = 1;
-            wasSideCollision = 1;
-            isSideCollision = true;
-            if(wasTopCollision) {
-              handleDamage();
-            }
-
-          } else if (direction == 3) {
-            player.y = block.y2 - 1;
-            velY = 0;
-            if(keys.has('w') || keys.has('up_arrow')) {
-              velY = jump;
-            }
-            if (grav < 0 || last_grav < 0) {
-              handleDamage();
-            }
-          } else if (direction == 4) {
-            player.x = block.x2 + 1;
-            velY = 5 * grav;
-            ground = 1;
-            wasSideCollision = 1;
-            isSideCollision = true;
-            if(wasTopCollision) {
-              handleDamage();
-            }
-          }
-        }
-
-        //Collision type 2; skip zone
-        if (block.type == 2) {
-          if (direction == 1) player.y = block.y2 + 1;
-          else if (direction == 2) player.x = block.x2 + 1;
-          else if (direction == 3) player.y = block.y1 - player.height - 1;
-          else if (direction == 4) player.x = block.x1 - player.width -1;
-        }
-
-        //collision type 3; death zone
-        if (block.type == 3) {
-          handleDamage();
-        }
-
-        //collision type; 4 reverse gravity
-        if (block.type == 4) {
-          grav -= 0.4;
-        }
-
-        //collision type 5; checkpoints
-        if (block.type == 5) {
-          player.respawnX = (block.x1 + block.x2) / 2;
-          player.respawnY = (block.y1 + block.y2) / 2;
-        }
-
-        //collision type 6; No sprint zone
-        if (block.type == 6) {
-          sprint = 0;
-        }
-
-        //collision type _; speed check (Unused)
-        // if (block.type == 7) {
-        //   let passY = 0;
-        //   if(block.extra[0].y < block.y1) {
-        //     passY = Math.sqrt((block.y1 - block.extra[0].y) * grav * 2);
-        //   }
-        //   if(block.extra[0].y > block.y2) {
-        //     passY = -Math.sqrt((block.extra[0].y - block.y2) * grav * 2);
-        //   }
-        //   if(velY < passY) {
-        //     velY = -1;
-        //     canDown = false;
-        //   } else {
-        //     velY = passY + 1;
-        //   }
-        // }
-
-
-        //collision type 7: bounce
-        if(block.type == 7) {
-          if(direction == 1) {
-            player.y = block.y1 - player.height;
-            velY = -1.1 * velY;
-          }
-          if(direction == 2) {
-            player.x = block.x1 - player.width;
-            velX = -velX;
-            stun = Math.abs(velX * 2);
-          }
-          if(direction == 3) {
-            player.y = block.y2;
-            velY = -1.1 * velY;
-          }
-          if (direction == 4) {
-            player.x = block.x2;
-            velX = -velX;
-            stun = 60;
-          }
-        }
-
-
-
-
-        //collision type 8; end gate
-        if(block.type == 8) {
-          level++;
-          if(level >= levels.length) {
-            level = 0;
-          }
-          blocks = [];
-          for (const x of Object.keys(field)) {
-            delete field[Number(x)]
-          }
-          field.length = 0
-          blocks = levels[level].blocks;
-          texts = levels[level].texts;
-          for(i = 0; i < blocks.length; i++) {
-            blockToField(blocks[i]);
-          }
-          player.respawnX = 400;
-          player.respawnY = 200;
-          handleDamage();
-        }
-        //collision type 10; portal;
-        if(block.type == 10) {
-          if(direction == 1) {
-            player.y += block.extra[0].y - (block.y2 + block.y1) / 2 + block.y2 - block.y1 + player.height;
-            player.x += block.extra[0].x - (block.x2 + block.x1) / 2;
-          }
-          if(direction == 2) {
-            player.x += block.extra[0].x - (block.x2 + block.x1) / 2 + block.x2 - block.x1 + player.width;
-            player.y += block.extra[0].y - (block.y2 + block.y1) / 2;
-          }
-          if(direction == 3) {
-            player.y += block.extra[0].y - (block.y2 + block.y1) / 2 - block.y2 + block.y1 - player.height;
-            player.x += block.extra[0].x - (block.x2 + block.x1) / 2;
-          }
-          if(direction == 4) {
-            player.x += block.extra[0].x - (block.x2 + block.x1) / 2 - block.x2 + block.x1 - player.width;
-            player.y += block.extra[0].y - (block.y2 + block.y1) / 2;
-          }
-        }
-
-      }
-    }
-    isSideCollision = false;
-    wasSideCollision--;
-    wasTopCollision = false;
-
-
-
-
-    //----------------- PLAYER MOVEMENT --------------------------------
-
-    if(gameplayMode == 0) {
-      velY += grav;
-    }
-
-    if(keys.has('p') && !pWasDown && (!newText.draw || !gameplayMode)) {
-      gameplayMode = 1 - gameplayMode;
-    }
-    pWasDown = keys.has('p');
-    if(gameplayMode == 0) {
-      if(stun <= 0) {
-        velX = 0;
-      }
-
-
-      if (keys.has('arrowLeft') || keys.has('a')) {
-        if(stun <= 0) {
-          if (aWasDown > 12 && dWasDown > 6 && sprint < -sprint_timer) {
-            sprint = 100
-          }
-          if (aWasDown < 11) {
-            aWasDown = Math.max(12, aWasDown + 12);
-          } else {
-            aWasDown = 12;
-          }
-          if (ground == 0) {
-            velX -= (sprint > 10 ? speed * sprint / 10 : speed);
-          } else {
-            velX -= speed;
-          }
-        } else if(velX >= 0){
-          stun--;
-        }
-      }
-      if (keys.has('arrowRight') || keys.has('d')) {
-        if(stun <= 0) {
-          if (dWasDown > 12 && aWasDown > 6 && sprint < -sprint_timer) {
-            sprint = 100
-          }
-          if (dWasDown < 11) {
-            dWasDown = Math.max(12, dWasDown + 12);
-          } else {
-            dWasDown = 12;
-          }
-          if (ground == 0) {
-            velX += (sprint > 10 ? speed * sprint / 10 : speed);
-          } else {
-            velX += speed;
-          }
-        } else if(velX <= 0){
-          velX++;
-          stun--;
-        }
-      }
-      if (keys.has('arrowDown') || keys.has('s')) {
-
-        if (!sWasDown && Math.abs(velY) > 3) {
-          if (canDown) {
-            if (grav > 0 && last_grav > 0) {
-              velY = 3
-            } else {
-              velY = -3
-            }
-          }
-        }else {
-          if (grav > 0 && last_grav > 0) {
-            velY = Math.abs(velY)
-          } else {
-            velY = -Math.abs(velY)
-          }
-        }
-      }
-      sWasDown = keys.has('s');
-
-      if (ground && (keys.has('arrowUp') || keys.has('w'))) {
-        if (grav < 0 || last_grav < 0) {
-          velY = jump;
-        } else {
-          velY = -jump
-        }
-        ground = 0;
-      }
-
-      sprint -= (ground == 1 ? 5 : 2);
-      aWasDown--;
-      dWasDown--;
-    } else {
-
-      //------editor movement------
-
-      velX = 0;
-      velY = 0;
-      if (!newText.draw) {
-        if (keys.has('arrowLeft') || keys.has('a')) {
-          velX = -Math.min(Math.max(10, editorDashX - (100 * editorAccel)), 50);
-          editorDashX += editorAccel;
-        } else if (keys.has('arrowRight') || keys.has('d')) {
-          velX = Math.min(Math.max(10, editorDashX - (100 * editorAccel)), 50);
-          editorDashX += editorAccel;
-        } else {
-          editorDashX = 0;
-        }
-
-        if (keys.has('arrowDown') || keys.has('s')) {
-          velY = Math.min(Math.max(10, editorDashY - (100 * editorAccel)), 50);
-          editorDashY += editorAccel;
-        } else if (keys.has('arrowUp') || keys.has('w')) {
-          velY = -Math.min(Math.max(10, editorDashY - (100 * editorAccel)), 50);
-          editorDashY += editorAccel;
-        } else {
-          editorDashY = 0;
-        }
-      }
-    }
-
-      if (keys.has('r') && (!newText.draw || !gameplayMode) && rWasDown < 0) {
-        gameplayMode = 0;
-        if (keys.has('shift')) {
-          player.respawnX = 400;
-          player.respawnY = 200;
-        }
-        handleDamage();
-      }
-      if(keys.has('r')) {
-        rWasDown = 1
-      }
-      rWasDown--;
-
-
-
-
-
-
-
-
-
-
-    // Update the camera before drawing this frame.
-    if (player.y > camera.y + 800 - cameraOffset) camera.y = player.y - 800 + cameraOffset;
-    if (player.y < camera.y + cameraOffset) camera.y = player.y - cameraOffset;
-    if (player.x > camera.x + 800 - cameraOffset) camera.x = player.x - 800 + cameraOffset;
-    if (player.x < camera.x + cameraOffset) camera.x = player.x - cameraOffset;
 
     // The mouse is in canvas coordinates; the editor uses world coordinates.
     const worldMouseX = mouse.x + camera.x
     const worldMouseY = mouse.y + camera.y
-
-    // ---------------------- EDITOR -------------------------------------------------------------------------
-    if(keys.has('0') && !keys.has('shift')) editorMode = 0;
-    if(keys.has('1')) editorMode = 1;
-    if (keys.has('2')) editorMode = 2;
-    if (keys.has('3')) editorMode = 3;
-    if (keys.has('4')) editorMode = 4;
-    if (keys.has('5')) editorMode = 5;
-    if (keys.has('6')) editorMode = 6;
-    if (keys.has('7')) editorMode = 7;
-    if (keys.has('8')) editorMode = 8;
-    if (keys.has('9')) editorMode = 9;
-    if(keys.has(')')) editorMode = 10;
+  if(!paused) {
+    if (respawn < 0) {
 
 
+      ground = 0;
+      player.x += velX;
+      player.y += velY;
+      last_grav = grav;
+      grav = 0.2;
+      canDown = true;
+      //----------------- PLAYER COLLISION --------------------------------
 
 
-    if (mouse.leftDown && !mouseWasDown && !editExtras) {
-      newBlock = {
-        x1: worldMouseX,
-        y1: worldMouseY,
-        x2: worldMouseX,
-        y2: worldMouseY,
-        draw: true,
-        type: editorMode,
-        index: blocks.length,
-        extra: []
-      }
-    }
-    if (!mouse.leftDown && mouseWasDown && newBlock.draw) {
-      if(!editExtras) {
-        newBlock.x2 = worldMouseX;
-        newBlock.y2 = worldMouseY;
-        if (newBlock.x1 > newBlock.x2) {
-          const temp = newBlock.x1;
-          newBlock.x1 = newBlock.x2;
-          newBlock.x2 = temp;
-        }
-        if (newBlock.y1 > newBlock.y2) {
-          const temp = newBlock.y1;
-          newBlock.y1 = newBlock.y2;
-          newBlock.y2 = temp;
-        }
-        if (newBlock.y2 - newBlock.y1 < 10) newBlock.y2 = newBlock.y1 + 10;
-        if (newBlock.x2 - newBlock.x1 < 50) {
-          newBlock.x1 = worldMouseX - 20;
-          newBlock.x2 = worldMouseX + 25;
-        }
-      }
-      if(newBlock.extra.length == blockExtras[editorMode] && newBlock.draw) {
-        blocks.push(newBlock);
-        blockToField(newBlock);
-        if(newBlock.type == 10) {
-          const otherPortal: block = {
-            x1: newBlock.extra[0].x - (newBlock.x2 - newBlock.x1) / 2,
-            y1: newBlock.extra[0].y - (newBlock.y2 - newBlock.y1) / 2,
-            x2: newBlock.extra[0].x + (newBlock.x2 - newBlock.x1) / 2,
-            y2: newBlock.extra[0].y + (newBlock.y2 - newBlock.y1) / 2,
-            draw: false,
-            type: 10,
-            index: blocks.length,
-            extra: [{x: (newBlock.x1 + newBlock.x2)/2, y: (newBlock.y1 + newBlock.y2)/2}]
+      const nearbyBlocks = field[Math.floor(player.x / player.width)]?.[Math.floor(player.y / player.height)] ?? []
+
+      for (let i = 0; i < nearbyBlocks.length; i++) {
+        let block = nearbyBlocks[i];
+        if (block && collidePlayer(block.x1, block.y1, block.x2, block.y2) != 0) {
+          let direction = collidePlayer(block.x1, block.y1, block.x2, block.y2);
+
+          //Collision type 0; smooth walls
+
+          if (block.type == 0) {
+            if (direction == 1) {
+              player.y = block.y1 - player.height - 1;
+              velY = 0;
+              if (grav > 0 && last_grav > 0) {
+                ground = 1;
+                player.y = block.y1 - player.height + 1;
+              }
+            } else if (direction == 2) {
+              player.x = block.x1 - player.width - 1;
+            } else if (direction == 3) {
+              player.y = block.y2 + 1;
+              velY = 0;
+              if (grav < 0 || last_grav < 0) {
+                ground = 1;
+                player.y = block.y2 - 1;
+              }
+            } else if (direction == 4) {
+              player.x = block.x2 + 1;
+            }
           }
-          blocks.push(otherPortal);
-          blockToField(otherPortal);
-        }
-        newBlock.draw = false
-        editExtras = false
-      } else if(newBlock.y2 !== newBlock.y1 && newBlock.draw) {
-        editExtras = true;
-      }
-    }
 
-  if(editExtras && mouse.leftDown && !mouseWasDown) {
-    newBlock.extra.push({x: worldMouseX, y: worldMouseY});
-  }
+          // Collision type 1; Climbable walls
 
 
+          if (block.type == 1) {
+            if (direction == 1) {
+              if (grav > 0) {
+                if (wasSideCollision < 0 || isSideCollision) {
+                  respawn = respawnTimer;
+                } else {
+                  wasTopCollision = true;
+                }
+              } else {
+                player.y = block.y2 - 1;
+                velY = 0;
+                if (keys.has('w') || keys.has('up_arrow')) {
+                  velY = jump;
+                }
+              }
+            } else if (direction == 2) {
+              player.x = block.x1 - player.width - 1;
+              velY = 5 * grav;
+              ground = 1;
+              wasSideCollision = 1;
+              isSideCollision = true;
+              if (wasTopCollision) {
+                respawn = respawnTimer;
+              }
 
-    mouseWasDown = mouse.leftDown;
-
-  if(keys.has('t') && !newText.draw) {
-    newText.x = worldMouseX;
-    newText.y = worldMouseY;
-    newText.draw = true;
-  }
-
-
-    if (mouse.rightDown) {
-      const cellX = Math.floor(worldMouseX / player.width)
-      const cellY = Math.floor(worldMouseY / player.height)
-      const candidates = field[cellX]?.[cellY] ?? []
-
-      for (const target of candidates) {
-        if (
-            worldMouseX > target.x1 &&
-            worldMouseX < target.x2 &&
-            worldMouseY > target.y1 &&
-            worldMouseY < target.y2 &&
-            (editorMode == 9 || target.type == editorMode)
-        ) {
-          const index = blocks.indexOf(target)
-          if (index !== -1) blocks.splice(index, 1)
-
-          for (let x = target.x1 - player.width; x <= target.x2 + player.width; x += player.width) {
-            for (let y = target.y1 - player.height; y <= target.y2 + player.height; y += player.height) {
-              const cell =
-                  field[Math.floor(x / player.width)]
-                      ?.[Math.floor(y / player.height)]
-
-              if (!cell) continue
-
-              for (let k = cell.length - 1; k >= 0; k--) {
-                if (cell[k] === target) cell.splice(k, 1)
+            } else if (direction == 3) {
+              player.y = block.y2 - 1;
+              velY = 0;
+              if (keys.has('w') || keys.has('up_arrow')) {
+                velY = jump;
+              }
+              if (grav < 0 || last_grav < 0) {
+                respawn = respawnTimer;
+              }
+            } else if (direction == 4) {
+              player.x = block.x2 + 1;
+              velY = 5 * grav;
+              ground = 1;
+              wasSideCollision = 1;
+              isSideCollision = true;
+              if (wasTopCollision) {
+                respawn = respawnTimer;
               }
             }
           }
 
-          break
+          //Collision type 2; skip zone
+          if (block.type == 2) {
+            if (direction == 1) player.y = block.y2 + 1;
+            else if (direction == 2) player.x = block.x2 + 1;
+            else if (direction == 3) player.y = block.y1 - player.height - 1;
+            else if (direction == 4) player.x = block.x1 - player.width - 1;
+          }
+
+          //collision type 3; death zone
+          if (block.type == 3) {
+            respawn = respawnTimer;
+          }
+
+          //collision type; 4 reverse gravity
+          if (block.type == 4) {
+            grav -= 0.4;
+          }
+
+          //collision type 5; checkpoints
+          if (block.type == 5) {
+            player.respawnX = (block.x1 + block.x2) / 2;
+            player.respawnY = (block.y1 + block.y2) / 2;
+          }
+
+          //collision type 6; No sprint zone
+          if (block.type == 6) {
+            sprint = 0;
+          }
+
+          //collision type _; speed check (Unused)
+          // if (block.type == 7) {
+          //   let passY = 0;
+          //   if(block.extra[0].y < block.y1) {
+          //     passY = Math.sqrt((block.y1 - block.extra[0].y) * grav * 2);
+          //   }
+          //   if(block.extra[0].y > block.y2) {
+          //     passY = -Math.sqrt((block.extra[0].y - block.y2) * grav * 2);
+          //   }
+          //   if(velY < passY) {
+          //     velY = -1;
+          //     canDown = false;
+          //   } else {
+          //     velY = passY + 1;
+          //   }
+          // }
+
+
+          //collision type 7: bounce
+          if (block.type == 7) {
+            if (direction == 1) {
+              player.y = block.y1 - player.height;
+              velY = -1.1 * velY;
+            }
+            if (direction == 2) {
+              player.x = block.x1 - player.width;
+              velX = -velX;
+              stun = Math.abs(velX * 2);
+            }
+            if (direction == 3) {
+              player.y = block.y2;
+              velY = -1.1 * velY;
+            }
+            if (direction == 4) {
+              player.x = block.x2;
+              velX = -velX;
+              stun = 60;
+            }
+          }
+
+
+          //collision type 8; end gate
+          if (block.type == 8) {
+            level++;
+            if (level >= levels.length) {
+              level = 0;
+            }
+            changeLevel(level);
+          }
+          //collision type 10; portal;
+          if (block.type == 10) {
+            if (direction == 1) {
+              player.y += block.extra[0].y - (block.y2 + block.y1) / 2 + block.y2 - block.y1 + player.height;
+              player.x += block.extra[0].x - (block.x2 + block.x1) / 2;
+            }
+            if (direction == 2) {
+              player.x += block.extra[0].x - (block.x2 + block.x1) / 2 + block.x2 - block.x1 + player.width;
+              player.y += block.extra[0].y - (block.y2 + block.y1) / 2;
+            }
+            if (direction == 3) {
+              player.y += block.extra[0].y - (block.y2 + block.y1) / 2 - block.y2 + block.y1 - player.height;
+              player.x += block.extra[0].x - (block.x2 + block.x1) / 2;
+            }
+            if (direction == 4) {
+              player.x += block.extra[0].x - (block.x2 + block.x1) / 2 - block.x2 + block.x1 - player.width;
+              player.y += block.extra[0].y - (block.y2 + block.y1) / 2;
+            }
+          }
+
         }
       }
-    }
-    if (mouse.middleDown) {
-      const candidates = field[Math.floor(worldMouseX / player.width)]?.[Math.floor(worldMouseY / player.height)] ?? []
+      isSideCollision = false;
+      wasSideCollision--;
+      wasTopCollision = false;
 
-      for (const target of candidates) {
-        if (
-            worldMouseX > target.x1 &&
-            worldMouseX < target.x2 &&
-            worldMouseY > target.y1 &&
-            worldMouseY < target.y2
-        ) {
-          const index = blocks.indexOf(target)
-          if (index !== -1) editorMode = target.type;
-          break
+
+      //----------------- PLAYER MOVEMENT --------------------------------
+
+      if (gameplayMode == 0) {
+        velY += grav;
+      }
+
+      if (keys.has('p') && !pWasDown && (!newText.draw || !gameplayMode)) {
+        gameplayMode = 1 - gameplayMode;
+      }
+      pWasDown = keys.has('p');
+      if (gameplayMode == 0) {
+        if (stun <= 0) {
+          velX = 0;
+        }
+
+
+        if (keys.has('arrowLeft') || keys.has('a')) {
+          if (stun <= 0) {
+            if (aWasDown > 12 && dWasDown > 6 && sprint < -sprint_timer) {
+              sprint = 100
+            }
+            if (aWasDown < 11) {
+              aWasDown = Math.max(12, aWasDown + 12);
+            } else {
+              aWasDown = 12;
+            }
+            if (ground == 0) {
+              velX -= (sprint > 10 ? speed * sprint / 10 : speed);
+            } else {
+              velX -= speed;
+            }
+          } else if (velX >= 0) {
+            stun--;
+          }
+        }
+        if (keys.has('arrowRight') || keys.has('d')) {
+          if (stun <= 0) {
+            if (dWasDown > 12 && aWasDown > 6 && sprint < -sprint_timer) {
+              sprint = 100
+            }
+            if (dWasDown < 11) {
+              dWasDown = Math.max(12, dWasDown + 12);
+            } else {
+              dWasDown = 12;
+            }
+            if (ground == 0) {
+              velX += (sprint > 10 ? speed * sprint / 10 : speed);
+            } else {
+              velX += speed;
+            }
+          } else if (velX <= 0) {
+            velX++;
+            stun--;
+          }
+        }
+        if (keys.has('arrowDown') || keys.has('s')) {
+
+          if (!sWasDown && Math.abs(velY) > 3) {
+            if (canDown) {
+              if (grav > 0 && last_grav > 0) {
+                velY = 3
+              } else {
+                velY = -3
+              }
+            }
+          } else {
+            if (grav > 0 && last_grav > 0) {
+              velY = Math.abs(velY)
+            } else {
+              velY = -Math.abs(velY)
+            }
+          }
+        }
+        sWasDown = keys.has('s');
+
+        if (ground && (keys.has('arrowUp') || keys.has('w'))) {
+          if (grav < 0 || last_grav < 0) {
+            velY = jump;
+          } else {
+            velY = -jump
+          }
+          if (sprint > 0) {
+            velY *= 1.2;
+          }
+          ground = 0;
+        }
+
+        sprint -= (ground == 1 ? 5 : 2);
+        aWasDown--;
+        dWasDown--;
+      } else {
+
+        //------editor movement------
+
+        velX = 0;
+        velY = 0;
+        if (!newText.draw) {
+          if (keys.has('arrowLeft') || keys.has('a')) {
+            velX = -Math.min(Math.max(10, editorDashX - (100 * editorAccel)), 50);
+            editorDashX += editorAccel;
+          } else if (keys.has('arrowRight') || keys.has('d')) {
+            velX = Math.min(Math.max(10, editorDashX - (100 * editorAccel)), 50);
+            editorDashX += editorAccel;
+          } else {
+            editorDashX = 0;
+          }
+
+          if (keys.has('arrowDown') || keys.has('s')) {
+            velY = Math.min(Math.max(10, editorDashY - (100 * editorAccel)), 50);
+            editorDashY += editorAccel;
+          } else if (keys.has('arrowUp') || keys.has('w')) {
+            velY = -Math.min(Math.max(10, editorDashY - (100 * editorAccel)), 50);
+            editorDashY += editorAccel;
+          } else {
+            editorDashY = 0;
+          }
         }
       }
+
+
+      if (keys.has('1') && keys.has('control')) changeLevel(1);
+      if (keys.has('2') && keys.has('control')) changeLevel(2);
+      if (keys.has('3') && keys.has('control')) changeLevel(3);
+      if (keys.has('4') && keys.has('control')) changeLevel(4);
+      if (keys.has('5') && keys.has('control')) changeLevel(5);
+      if (keys.has('6') && keys.has('control')) changeLevel(6);
+      if (keys.has('7') && keys.has('control')) changeLevel(7);
+      if (keys.has('8') && keys.has('control')) changeLevel(8);
+      if (keys.has('9') && keys.has('control')) changeLevel(9);
+      if (keys.has('0') && keys.has('control')) changeLevel(0);
+
+
+      // Update the camera before drawing this frame.
+      if (player.y > camera.y + 800 - cameraOffset) camera.y = player.y - 800 + cameraOffset;
+      if (player.y < camera.y + cameraOffset) camera.y = player.y - cameraOffset;
+      if (player.x > camera.x + 800 - cameraOffset) camera.x = player.x - 800 + cameraOffset;
+      if (player.x < camera.x + cameraOffset) camera.x = player.x - cameraOffset;
+
+
+      // ---------------------- EDITOR -------------------------------------------------------------------------
+      if (keys.has('0') && !keys.has('shift')) editorMode = 0;
+      if (keys.has('1')) editorMode = 1;
+      if (keys.has('2')) editorMode = 2;
+      if (keys.has('3')) editorMode = 3;
+      if (keys.has('4')) editorMode = 4;
+      if (keys.has('5')) editorMode = 5;
+      if (keys.has('6')) editorMode = 6;
+      if (keys.has('7')) editorMode = 7;
+      if (keys.has('8')) editorMode = 8;
+      if (keys.has('9')) editorMode = 9;
+      if (keys.has(')')) editorMode = 10;
+
+
+      if (mouse.leftDown && !mouseWasDown && !editExtras) {
+        newBlock = {
+          x1: worldMouseX,
+          y1: worldMouseY,
+          x2: worldMouseX,
+          y2: worldMouseY,
+          draw: true,
+          type: editorMode,
+          index: blocks.length,
+          extra: []
+        }
+        if (!keys.has('shift') && !keys.has('control')) [newBlock.x1, newBlock.y1] = [newBlock.x1, newBlock.y1].map(value => Math.round(value / 40) * 40);
+        if (keys.has('shift') && !keys.has('control')) [newBlock.x1, newBlock.y1] = [newBlock.x1, newBlock.y1].map(value => Math.round(value / 20) * 20);
+        if (!keys.has('shift') && keys.has('control')) [newBlock.x1, newBlock.y1] = [newBlock.x1, newBlock.y1].map(value => Math.round(value / 10) * 10);
+        if (keys.has('shift') && keys.has('control')) [newBlock.x1, newBlock.y1] = [newBlock.x1, newBlock.y1].map(Math.round);
+      }
+      if (!mouse.leftDown && mouseWasDown && newBlock.draw) {
+        if (!editExtras) {
+          newBlock.x2 = worldMouseX;
+          newBlock.y2 = worldMouseY;
+          if (!keys.has('shift') && !keys.has('control')) [newBlock.x2, newBlock.y2] = [newBlock.x2, newBlock.y2].map(value => Math.round(value / 40) * 40);
+          if (keys.has('shift') && !keys.has('control')) [newBlock.x2, newBlock.y2] = [newBlock.x2, newBlock.y2].map(value => Math.round(value / 20) * 20);
+          if (!keys.has('shift') && keys.has('control')) [newBlock.x2, newBlock.y2] = [newBlock.x2, newBlock.y2].map(value => Math.round(value / 10) * 10);
+          if (keys.has('shift') && keys.has('control')) [newBlock.x2, newBlock.y2] = [newBlock.x2, newBlock.y2].map(Math.round);
+          if (newBlock.x1 > newBlock.x2) {
+            const temp = newBlock.x1;
+            newBlock.x1 = newBlock.x2;
+            newBlock.x2 = temp;
+          }
+          if (newBlock.y1 > newBlock.y2) {
+            const temp = newBlock.y1;
+            newBlock.y1 = newBlock.y2;
+            newBlock.y2 = temp;
+          }
+
+        }
+        if (newBlock.extra.length == blockExtras[editorMode] && newBlock.draw) {
+
+          for (const point of newBlock.extra) {
+            if (!keys.has('shift') && !keys.has('control')) [point.x, point.y] = [point.x, point.y].map(value => Math.round(value / 40) * 40);
+            if (keys.has('shift') && !keys.has('control')) [point.x, point.y] = [point.x, point.y].map(value => Math.round(value / 20) * 20);
+            if (!keys.has('shift') && keys.has('control')) [point.x, point.y] = [point.x, point.y].map(value => Math.round(value / 10) * 10);
+            if (keys.has('shift') && keys.has('control')) [point.x, point.y] = [point.x, point.y].map(Math.round);
+          }
+          let mouseRounded = 0;
+          if (!keys.has('shift') && !keys.has('control')) mouseRounded = Math.round(worldMouseX / 40) * 40;
+          if (keys.has('shift') && !keys.has('control')) mouseRounded = Math.round(worldMouseX / 20) * 20;
+          if (!keys.has('shift') && keys.has('control')) mouseRounded = Math.round(worldMouseX / 10) * 10;
+          if (keys.has('shift') && keys.has('control')) mouseRounded = Math.round(worldMouseX);
+
+          if (newBlock.y2 - newBlock.y1 < 10) newBlock.y2 = newBlock.y1 + 10;
+          if (newBlock.x2 - newBlock.x1 < 50) {
+            newBlock.x1 = mouseRounded - 25;
+            newBlock.x2 = mouseRounded + 25;
+          }
+
+          blocks.push(newBlock);
+          blockToField(newBlock);
+          if (newBlock.type == 10) {
+            const otherPortal: block = {
+              x1: newBlock.extra[0].x - (newBlock.x2 - newBlock.x1) / 2,
+              y1: newBlock.extra[0].y - (newBlock.y2 - newBlock.y1) / 2,
+              x2: newBlock.extra[0].x + (newBlock.x2 - newBlock.x1) / 2,
+              y2: newBlock.extra[0].y + (newBlock.y2 - newBlock.y1) / 2,
+              draw: false,
+              type: 10,
+              index: blocks.length,
+              extra: [{x: (newBlock.x1 + newBlock.x2) / 2, y: (newBlock.y1 + newBlock.y2) / 2}]
+            }
+            blocks.push(otherPortal);
+            blockToField(otherPortal);
+          }
+          newBlock.draw = false
+          editExtras = false
+        } else if (newBlock.y2 !== newBlock.y1 && newBlock.draw) {
+          editExtras = true;
+        }
+      }
+
+      if (editExtras && mouse.leftDown && !mouseWasDown) {
+        newBlock.extra.push({x: worldMouseX, y: worldMouseY});
+      }
+
+
+      mouseWasDown = mouse.leftDown;
+
+      if (keys.has('t') && !newText.draw) {
+        newText.x = worldMouseX;
+        newText.y = worldMouseY;
+        if (!keys.has('shift') && !keys.has('control')) [newText.x, newText.y] = [newText.x, newText.y].map(value => Math.round(value / 40) * 40);
+        if (keys.has('shift') && !keys.has('control')) [newText.x, newText.y] = [newText.x, newText.y].map(value => Math.round(value / 20) * 20);
+        if (!keys.has('shift') && keys.has('control')) [newText.x, newText.y] = [newText.x, newText.y].map(value => Math.round(value / 10) * 10);
+        if (keys.has('shift') && keys.has('control')) [newText.x, newText.y] = [newText.x, newText.y].map(Math.round);
+        newText.draw = true;
+      }
+
+
+      if (mouse.rightDown) {
+        const cellX = Math.floor(worldMouseX / player.width)
+        const cellY = Math.floor(worldMouseY / player.height)
+        const candidates = field[cellX]?.[cellY] ?? []
+
+        for (const target of candidates) {
+          if (
+              worldMouseX > target.x1 &&
+              worldMouseX < target.x2 &&
+              worldMouseY > target.y1 &&
+              worldMouseY < target.y2 &&
+              (editorMode == 9 || target.type == editorMode)
+          ) {
+            const index = blocks.indexOf(target)
+            if (index !== -1) blocks.splice(index, 1)
+            for (let i = index; i < blocks.length; i++) {
+              blocks[i].index--;
+            }
+
+            for (let x = target.x1 - player.width; x <= target.x2 + player.width; x += player.width) {
+              for (let y = target.y1 - player.height; y <= target.y2 + player.height; y += player.height) {
+                const cell =
+                    field[Math.floor(x / player.width)]
+                        ?.[Math.floor(y / player.height)]
+
+                if (!cell) continue
+
+                for (let k = cell.length - 1; k >= 0; k--) {
+                  if (cell[k] === target) cell.splice(k, 1)
+                }
+              }
+            }
+
+            break
+          }
+        }
+      }
+      if (mouse.middleDown) {
+        const candidates = field[Math.floor(worldMouseX / player.width)]?.[Math.floor(worldMouseY / player.height)] ?? []
+
+        for (const target of candidates) {
+          if (
+              worldMouseX > target.x1 &&
+              worldMouseX < target.x2 &&
+              worldMouseY > target.y1 &&
+              worldMouseY < target.y2
+          ) {
+            const index = blocks.indexOf(target)
+            if (index !== -1) editorMode = target.type;
+            break
+          }
+        }
+      }
+
+
+    } else if (respawn > 0) {
+      respawn--;
+    } else {
+      player.x = player.respawnX - player.width / 2;
+      player.y = player.respawnY - player.height / 2;
+      velX = 0;
+      velY = 0;
+      ground = 0;
+      deaths++;
+      respawn = -1;
+      sprint = 0;
     }
 
+    if (keys.has('r') && (!newText.draw || !gameplayMode) && rWasDown < 0) {
+      gameplayMode = 0;
+      if (keys.has('shift')) {
+        player.respawnX = 400;
+        player.respawnY = 200;
+      }
+      respawn = 0;
+    }
+    if (keys.has('r')) {
+      rWasDown = 1
+    }
+    rWasDown--;
+  }
 
-
-
-
-
-
+    if(keys.has('escape') && !escWasDown) {
+      paused = !paused;
+    }
+    escWasDown = false;
+  if(keys.has('escape')) {
+    escWasDown = true;
+  }
 
     // ------------------- DRAWING ------------------------------------------------------------
     // Clear in canvas coordinates, then draw the world through the camera.
@@ -948,7 +1020,7 @@ function handleDamage () {
       if(block.type == 5) { ctx.fillStyle = 'rgba(0, 200, 250, 0.2)' }
       if(block.type == 6) { ctx.fillStyle = 'rgba(250, 0, 250, 0.2)' }
       if(block.type == 7) { ctx.fillStyle = 'rgba(150, 150, 150, 1)' }
-      if(block.type == 8) { ctx.fillStyle = 'rgba(255, 255, 255, 1)' }
+      if(block.type == 8) { ctx.fillStyle = 'rgba(0, 0, 0, 1)' }
       if(block.type == 10) { ctx.fillStyle = 'rgba(0, 100, 200, 1)' }
       const pattern = blockPatterns[block.type]
       if (pattern) ctx.fillStyle = pattern
@@ -1014,10 +1086,25 @@ function handleDamage () {
     ctx.fillText(`deaths: ${deaths}`, 650 + camera.x , 70 + camera.y);
     ctx.textAlign = 'center'
 
-    ctx.fillStyle = 'red'
+    const opac = respawn < 0 ? 1 : respawn / respawnTimer
+    ctx.fillStyle = `rgba(255, 0, 0, ${opac})`
     ctx.fillRect(player.x, player.y, player.width, player.height)
+    if(respawn > 0) {
+      ctx.fillStyle = `rgba(255, 0, 0, ${opac/3})`
+      ctx.fillRect(camera.x, camera.y, 800, 800)
+    }
 
-    ctx.restore()
+    if(paused) {
+      ctx.save();
+
+      ctx.fillStyle = `rgba(0, 0, 0, 0.8)`;
+      ctx.fillRect(camera.x, camera.y, canvas.width, canvas.height);
+      ctx.fillStyle = `rgb(255, 255, 255)`;
+      ctx.font = '100px Arial';
+      ctx.fillText('PAUSED', camera.x + canvas.width / 2, camera.y + canvas.height / 8);
+
+      ctx.restore();
+    }
     // Schedule exactly one next frame.
     requestAnimationFrame(frame)
   }
